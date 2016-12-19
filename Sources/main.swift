@@ -96,14 +96,35 @@ extension Github.Repo: JSONInitializable {
 }
 
 let repoUrl = URL(string: "https://api.github.com/repos/vdka/json")!
-let (data, response, error) = URLSession.shared.syncDataTask(with: repoUrl)
-guard let data = data else { exit(1) }
+var (data, response, error): (Data?, URLResponse?, Error?)
+(data, response, error) = URLSession.shared.syncDataTask(with: repoUrl)
 do {
+    guard let data = data else { exit(1) }
     let json = try JSON.Parser.parse(data)
 
     let repo: Github.Repo = try json.get()
 
     print("\(repo.fullName) has \(repo.stars) stars. Why not make it 1 more!")
+
+} catch {
+    print("Some \(error) occurred")
+}
+
+let fixerUrl = URL(string: "https://api.fixer.io/latest?base=AUD&symbols=USD,EUR,GBP")!
+(data, response, error) = URLSession.shared.syncDataTask(with: fixerUrl)
+do {
+    guard let data = data else { exit(1) }
+    let json = try JSON.Parser.parse(data)
+
+    let base: String = try json.get("base")
+
+    json["rates"]?.object?.forEach { (symbol, rate) in
+        print("\(base)\(symbol) trading @ \(rate)")
+    }
+
+    let reformattedJson: JSON = .array(json["rates"]?.object?.flatMap({ ["symbol": $0.0, "rate": $0.1] }) ?? [])
+
+    try print(reformattedJson.serialized(options: .prettyPrint))
 
 } catch {
     print("Some \(error) occurred")
